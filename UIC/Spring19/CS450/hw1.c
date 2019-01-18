@@ -12,10 +12,10 @@ int debug = 1;
 int main(int argc, char *argv[]) {
 
   if(debug) {
-    printf("You have entered %d\n", argc);
+    printf("Arguments besides executable %d\n", argc - 1);
     for (int i = 1; i < argc; ++i)
         printf("%s\n", argv[i]);
-    printf("\n");
+    printf("----\n");
   }
 
   FILE * file;
@@ -54,10 +54,49 @@ int main(int argc, char *argv[]) {
   fclose(file);
 
   if(debug) {
+    printf("This is the debug for the entire email file\n");
     for(int i = -1; i < bufsize; i++)
       printf("%c", source[i]);
+    printf("----\n");
   }
 
+  // parsing the stored email
+  char * tok = strtok(source, "<");
+
+  // store the from
+  char from[80]; // TODO better way of determining size
+  tok = strtok(NULL, ">");
+  strcpy(from,tok);
+  if(debug) {printf("this is the debug for the from: %s\n----\n", from);}
+
+  // store the to
+  char to[80]; // TODO better way of determining size
+  tok = strtok(NULL, "<");
+  tok = strtok(NULL, ">");
+  strcpy(to, tok);
+  if(debug) {printf("this is the debug for the to: %s\n----\n", to);}
+
+  // store the subject
+  char subject[500]; // TODO better way of determining size
+  tok = strtok(NULL, ":");
+  tok = strtok(NULL, "\n");
+  strcpy(subject, tok);
+  if(debug) {printf("this is the debug for the subject: %s\n----\n", subject);}
+
+  // store the body
+  char body[2000]; // TODO better way of determining size
+  tok = strtok(NULL, "\n");
+  strcpy(body, tok);
+
+  if(debug) {printf("this is the debug for the body: %s\n----\n", body);}
+
+  FILE * mailhost = popen("host -t MX cs.uic.edu", "r");
+  char * mailHostAddress[80];
+
+  if(mailhost != NULL) {
+
+  }
+  pclose(mailhost);
   free(source);
   return 0;
 }
