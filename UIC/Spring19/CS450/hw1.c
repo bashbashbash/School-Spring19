@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 int debug = 1;
 
@@ -91,12 +93,27 @@ int main(int argc, char *argv[]) {
   if(debug) {printf("this is the debug for the body: %s\n----\n", body);}
 
   FILE * mailhost = popen("host -t MX cs.uic.edu", "r");
-  char * mailHostAddress[80];
+  char popenText[80];
+  char mailClientSpaced[50];
+  char mailClient[50];
 
   if(mailhost != NULL) {
+    fgets(popenText, 80, mailhost);
+    if(debug) {printf("The result of the popen: %s", popenText);}
+    tok = strtok(popenText, "0123456789");
+    tok = strtok(NULL, "\n");
+    strcpy(mailClientSpaced, tok);
+    strncpy(mailClient, &mailClientSpaced[1], 49);
 
+    if(debug) {printf("The result of the mailClient: %s", mailClient);}
   }
   pclose(mailhost);
+
+  int socketfd  = socket(AF_INET, SOCK_STREAM, 0);
+  struct sockaddr sockadd;
+  int addlength = sizeof(sockadd);
+  int connectfd = connect(socketfd, sockadd, )
+
   free(source);
   return 0;
 }
