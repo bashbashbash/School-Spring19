@@ -7,23 +7,105 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #define PORT 25
+#define BUFSIZE 1024
 
 int debug = 1;
 
-int main(int argc, char *argv[]) {
+void readAndPrintFD(int fileDescriptor) {
+  char result[BUFSIZE] = {0};
+  read(fileDescriptor, result, BUFSIZE);
+  printf("%s\n", result);
+}
 
-  if(debug) {
-    printf("Arguments besides executable %d\n", argc - 1);
-    for (int i = 1; i < argc; ++i)
-        printf("%s\n", argv[i]);
-    printf("----\n");
+void sendReceiveAndPrint(int fileDescriptor, char *lineToSend) {
+  send(fileDescriptor, lineToSend, strlen(lineToSend), 0);
+  readAndPrintFD(fileDescriptor);
+}
+
+int setSocketFd() {
+  int socketFd = -1;
+  if((socketFd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    printf("Rookie mistake - the socket is -1!\n");
+    return -1;
   }
+  if(debug){ printf("This is the socket: %d\n", socketFd);}
 
+  return socketFd;
+}
+
+int connectToServer(int socketFd, char *iP) {
+  struct sockaddr_in servadd;
+  memset(&servadd, '0', sizeof(servadd));
+  if((servadd.sin_addr.s_addr = inet_addr("131.193.32.56")) < 0) {
+    perror("Error with inet_addr");
+    return -1;
+  }
+  servadd.sin_family = AF_INET;
+  servadd.sin_port   = htons(PORT);
+
+  if(connect(socketFd, (struct sockaddr *)&servadd, sizeof(servadd)) < 0) {
+    perror("The error at connect is: ");
+    printf("\nRookie mistake - connection did not occur\n");
+    return -1;
+  }
+  return socketFd;
+}
+
+char * getTheiP(char * tok) {
+  FILE * mailhost = popen("host -t MX cs.uic.edu", "r");
+  char popenText[80];
+  char mailClientSpaced[50];
+  char mailClient[50];
+
+  if(mailhost != NULL) {
+    fgets(popenText, 80, mailhost);
+    if(debug) {printf("The result of the popen: %s", popenText);}
+    tok = strtok(popenText, "0123456789");
+    tok = strtok(NULL, "\n");
+    strcpy(mailClientSpaced, tok);
+    strncpy(mailClient, &mailClientSpaced[1], 49);
+    if(debug) {printf("The result of the mailClient: %s\n", mailClient);}
+  }
+  pclose(mailhost);
+
+  char hostMailClinetCommand[1024] = {0};
+  strcat(hostMailClinetCommand, "host ");
+  strcat(hostMailClinetCommand, mailClient);
+  if(debug) {printf("This is the concat result of hostMailClinetCommand: %s\n", hostMailClinetCommand);}
+
+  FILE *mailIP = popen(hostMailClinetCommand, "r");
+  char IPSpaced[30];
+  char iP[30];
+  char IpNeededAdd[30];
+
+  // this part was having problems when setting up the IP storing
+  // The tok cuts off the first 1, and when concat a 1 with the rest
+  // of the IP, a bunch of garbage gets added, which is taken care of
+  // with the intermiate IPNeededAdd
+  if(mailIP != NULL) {
+    fgets(popenText, 80, mailIP);
+    if(debug) {printf("The result of the popen: %s", popenText);}
+    tok = strtok(popenText, "0123456789");
+    tok = strtok(NULL, "\n");
+    strcpy(IPSpaced, tok);
+    strcat(IpNeededAdd,"1");
+    strcat(IpNeededAdd,IPSpaced);
+    strncpy(iP,&IpNeededAdd[0],strlen(IpNeededAdd));
+    if(debug) {printf("The result of the IP: %s\n", iP);}
+  }
+  pclose(mailIP);
+
+  return iP;
+}
+
+char * openFileAndLoad(char *argv[]) {
   FILE * file;
   char * source = NULL;
   file = fopen(argv[1], "r");
@@ -61,18 +143,25 @@ int main(int argc, char *argv[]) {
 
   if(debug) {
     printf("This is the debug for the entire email file\n");
-    for(int i = -1; i < bufsize; i++)
+    int i = -1;
+    for(; i < bufsize; i++)
       printf("%c", source[i]);
     printf("----\n");
   }
 
-  // parsing the stored email
+
+
+  return source;
+}
+
+char * parseTheEmail(char *source, char **emailArray) {
   char * tok = strtok(source, "<");
 
   // store the from
   char from[80]; // TODO better way of determining size
   tok = strtok(NULL, ">");
   strcpy(from,tok);
+  //strcpy(emailArray[0], tok);
   if(debug) {printf("this is the debug for the from: %s\n----\n", from);}
 
   // store the to
@@ -80,6 +169,7 @@ int main(int argc, char *argv[]) {
   tok = strtok(NULL, "<");
   tok = strtok(NULL, ">");
   strcpy(to, tok);
+  //strcpy(emailArray[1], tok);
   if(debug) {printf("this is the debug for the to: %s\n----\n", to);}
 
   // store the subject
@@ -87,79 +177,60 @@ int main(int argc, char *argv[]) {
   tok = strtok(NULL, ":");
   tok = strtok(NULL, "\n");
   strcpy(subject, tok);
+  //strcpy(emailArray[2], tok);
   if(debug) {printf("this is the debug for the subject: %s\n----\n", subject);}
 
   // store the body
   char body[2000]; // TODO better way of determining size
   tok = strtok(NULL, "\n");
   strcpy(body, tok);
-
+  //strcpy(emailArray[3], tok);
   if(debug) {printf("this is the debug for the body: %s\n----\n", body);}
 
-  FILE * mailhost = popen("host -t MX cs.uic.edu", "r");
-  char popenText[80];
-  char mailClientSpaced[50];
-  char mailClient[50];
+  emailArray[0] = "HELO server\n";
+  emailArray[1] = "MAIL FROM: <zlabas2@uic.edu>\n";
+  emailArray[2] = "RCPT TO: <zlabas2@uic.edu>\n";
+  emailArray[3] = "DATA\n";
+  emailArray[4] = "FROM: zack <zlabas2@uic.edu>\n";
+  emailArray[5] = "Subject: Tests for CS450 HW1!\n\nGo Bears\n.\n";
+  emailArray[6] = "QUIT\n";
+  
+  return tok;
+}
 
-  if(mailhost != NULL) {
-    fgets(popenText, 80, mailhost);
-    if(debug) {printf("The result of the popen: %s", popenText);}
-    tok = strtok(popenText, "0123456789");
-    tok = strtok(NULL, "\n");
-    strcpy(mailClientSpaced, tok);
-    strncpy(mailClient, &mailClientSpaced[1], 49);
-    if(debug) {printf("The result of the mailClient: %s\n", mailClient);}
+int main(int argc, char *argv[]) {
+
+  if(debug) {
+    printf("Arguments besides executable %d\n", argc - 1);
+    int i = 1;
+    for (; i < argc; ++i)
+        printf("%s\n", argv[i]);
+    printf("----\n");
   }
-  pclose(mailhost);
 
-  char hostMailClinetCommand[1024] = {0};
-  strcat(hostMailClinetCommand, "host ");
-  strcat(hostMailClinetCommand, mailClient);
-  if(debug) {printf("This is the concat result of hostMailClinetCommand: %s\n", hostMailClinetCommand);}
-
-  FILE *mailIP = popen(hostMailClinetCommand, "r");
-  char IPSpaced[30];
-  char IP[30];
-
-  if(mailIP != NULL) {
-    fgets(popenText, 80, mailIP);
-    if(debug) {printf("The result of the popen: %s", popenText);}
-    tok = strtok(popenText, "0123456789");
-    tok = strtok(NULL, "\n");
-    strcpy(IPSpaced, tok);
-    strncpy(IP, &IPSpaced, 29);
-    if(debug) {printf("The result of the IP: %s\n", IP);}
-  }
-  pclose(mailIP);
-
+  // load the email into a char array
+  char **emailArray = (char**) malloc(sizeof(char*) * 7);
+  char * source = openFileAndLoad(argv);
+  // parsing the stored email
+  char *tok = parseTheEmail(source, emailArray);
+  // get the IP
+  char *iP = getTheiP(tok);
   // set the socket
-  int socketfd = -1;
-  if((socketfd = socket(AF_INET, SOCK_STREAM, 0) == -1)) {
-    printf("Rookie mistake - the socket is -1!\n");
-    return -1;
+  int socketFd = setSocketFd();
+  // connect to server
+  connectToServer(socketFd, iP);
+  // sending the email
+  int i = 0;
+  for(i = 0; i < 7; i++) {
+    sendReceiveAndPrint(socketFd, emailArray[i]);
+    if(i == 0) // weird issue that requries two reads to work
+      readAndPrintFD(socketFd);
+    if(i ==3 ) // weird issue that requires two sends to work
+      i++;
   }
 
-  struct sockaddr_in servadd;
-  memset(&servadd, '0', sizeof(servadd));
-  servadd.sin_family = AF_INET;
-  servadd.sin_port   = htons(PORT);
-
-// converting addresses from text to binary
-  if(inet_pton(AF_INET, IP, &servadd.sin_addr) <= 0) {
-    printf("Rookie mistake - address invalid\n");
-    return -1;
-  }
-
-  if(connect(socketfd, (struct sockaddr *)&servadd, sizeof(servadd)) < 0) {
-    printf("\nRookie mistake - connection did not occur\n");
-    return -1;
-  }
-
-  send(socketfd, "helo server!", strlen("helo server!"), 0);
-  char receivedText[1024] = {0};
-  int retval = read(socketfd, receivedText, 1024);
-  printf("%s\n", receivedText);
-
+  // free memory
+  free(emailArray);
   free(source);
   return 0;
 }
