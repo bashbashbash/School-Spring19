@@ -58,12 +58,12 @@ int connectToServer(int socketFd, char *iP) {
   return socketFd;
 }
 
-char * getTheiP(char * tok) {
+char * getTheiP() {
   FILE * mailhost = popen("host -t MX cs.uic.edu", "r");
   char popenText[80];
   char mailClientSpaced[50];
   char mailClient[50];
-
+  char * tok = {0};
   if(mailhost != NULL) {
     fgets(popenText, 80, mailhost);
     if(debug) {printf("The result of the popen: %s", popenText);}
@@ -81,9 +81,9 @@ char * getTheiP(char * tok) {
   if(debug) {printf("This is the concat result of hostMailClinetCommand: %s\n", hostMailClinetCommand);}
 
   FILE *mailIP = popen(hostMailClinetCommand, "r");
-  char IPSpaced[30];
-  char iP[30];
-  char IpNeededAdd[30];
+  char IPSpaced[30] = {0};
+  char iP[30] = {0};
+  char IpNeededAdd[30] = {0};
 
   // this part was having problems when setting up the IP storing
   // The tok cuts off the first 1, and when concat a 1 with the rest
@@ -154,48 +154,57 @@ char * openFileAndLoad(char *argv[]) {
   return source;
 }
 
-char * parseTheEmail(char *source, char **emailArray) {
+char ** parseTheEmail(char *source) {
+  char **emailArray = (char**) malloc(sizeof(char*) * 7);
   char * tok = strtok(source, "<");
 
   // store the from
-  char from[80]; // TODO better way of determining size
+  char from[80] = {0}; // TODO better way of determining size;
   tok = strtok(NULL, ">");
-  strcpy(from,tok);
-  //strcpy(emailArray[0], tok);
-  if(debug) {printf("this is the debug for the from: %s\n----\n", from);}
-
+  strcat(from, "MAIL FROM: <");
+  strcat(from, tok);
+  strcat(from, ">");
+  emailArray[1] = from;
+  //printf("The length of from is: %d\n", (int)strlen(from));
+  //if(debug) {printf("this is the debug for the from: %s\n----\n", emailArray[1]);}
   // store the to
-  char to[80]; // TODO better way of determining size
-  tok = strtok(NULL, "<");
-  tok = strtok(NULL, ">");
-  strcpy(to, tok);
-  //strcpy(emailArray[1], tok);
-  if(debug) {printf("this is the debug for the to: %s\n----\n", to);}
+  char to[80] = {0}; // TODO better way of determining size
+  strcat(to, "RCPT TO: <");
+  strcat(to, tok);
+  strcat(to, ">\n");
+  emailArray[2] = to;
+  if(debug) {printf("this is the debug for the to: %s\n----\n", emailArray[2]);}
 
   // store the subject
-  char subject[500]; // TODO better way of determining size
-  tok = strtok(NULL, ":");
+  char subject[BUFSIZE] = {0}; // TODO better way of determining size
   tok = strtok(NULL, "\n");
-  strcpy(subject, tok);
+  tok = strtok(NULL, "\n");
+  strcat(subject, tok);
+  strcat(subject, "\n\n");
+  tok = strtok(NULL, "\n");
+  strcat(subject, tok);
+  strcat(subject, "\n.\n");
   //strcpy(emailArray[2], tok);
   if(debug) {printf("this is the debug for the subject: %s\n----\n", subject);}
 
-  // store the body
-  char body[2000]; // TODO better way of determining size
-  tok = strtok(NULL, "\n");
-  strcpy(body, tok);
-  //strcpy(emailArray[3], tok);
-  if(debug) {printf("this is the debug for the body: %s\n----\n", body);}
+  // // store the body
+  // char body[2000]; // TODO better way of determining size
+  // tok = strtok(NULL, "\n");
+  // strcpy(body, tok);
+  // //strcpy(emailArray[3], tok);
+  if(debug) {printf("this is the debug for the body: %s\n----\n", tok);}
 
   emailArray[0] = "HELO server\n";
   emailArray[1] = "MAIL FROM: <zlabas2@uic.edu>\n";
+  //printf("THis is emailArray[1]: %s and this is from: %s", emailArray[1], from);
+  //printf("The length of emailArray[1] is: %d\n", (int)strlen(emailArray[1]));
   emailArray[2] = "RCPT TO: <zlabas2@uic.edu>\n";
   emailArray[3] = "DATA\n";
   emailArray[4] = "FROM: zack <zlabas2@uic.edu>\n";
   emailArray[5] = "Subject: Tests for CS450 HW1!\n\nGo Bears\n.\n";
   emailArray[6] = "QUIT\n";
-  
-  return tok;
+
+  return emailArray;
 }
 
 int main(int argc, char *argv[]) {
@@ -209,12 +218,12 @@ int main(int argc, char *argv[]) {
   }
 
   // load the email into a char array
-  char **emailArray = (char**) malloc(sizeof(char*) * 7);
+  char **emailArray = {0};
   char * source = openFileAndLoad(argv);
   // parsing the stored email
-  char *tok = parseTheEmail(source, emailArray);
+  emailArray = parseTheEmail(source);
   // get the IP
-  char *iP = getTheiP(tok);
+  char *iP = getTheiP();
   // set the socket
   int socketFd = setSocketFd();
   // connect to server

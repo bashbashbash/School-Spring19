@@ -1,5 +1,5 @@
-From: Busy Beaver <beaver@busy.com>
-To: Jakob Eriksson <jakob@uic.edu>
+From: Zack Labaschin <zlabas2@uic.edu>
+To: Zack Labaschin <zlabas2@uic.edu>
 Subject: Give me an A
 
 My program sends email. Thus, I deserve an A.
