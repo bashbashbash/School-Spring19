@@ -16,17 +16,25 @@
 #define PORT 25
 #define BUFSIZE 1024
 
-int debug = 1;
+int debug = 0;
 
-void readAndPrintFD(int fileDescriptor) {
+void sendAndRead(int fileDescriptor, char * lineToSend) {
+  char received[BUFSIZE] = {0};
+  printf("%s", lineToSend);
+  send(fileDescriptor, lineToSend, strlen(lineToSend), 0);
+  read(fileDescriptor, received, strlen(received));
+  printf("%s", received);
+}
+
+void readAndPrintFD(int fileDescriptor, char * lineToSend) {
   char result[BUFSIZE] = {0};
   read(fileDescriptor, result, BUFSIZE);
-  printf("%s\n", result);
+  printf("%s\n%s\n", lineToSend, result);
 }
 
 void sendReceiveAndPrint(int fileDescriptor, char *lineToSend) {
   send(fileDescriptor, lineToSend, strlen(lineToSend), 0);
-  readAndPrintFD(fileDescriptor);
+  readAndPrintFD(fileDescriptor, lineToSend);
 }
 
 int setSocketFd() {
@@ -105,10 +113,10 @@ char * getTheiP() {
   return iP;
 }
 
-char * openFileAndLoad(char *argv[]) {
+char * openFileAndLoad(char *argv) {
   FILE * file;
   char * source = NULL;
-  file = fopen(argv[1], "r");
+  file = fopen(argv, "r");
   long bufsize;
 
   if(file != NULL) {
@@ -155,91 +163,169 @@ char * openFileAndLoad(char *argv[]) {
 }
 
 char ** parseTheEmail(char *source) {
-  char **emailArray = (char**) malloc(sizeof(char*) * 7);
-  char * tok = strtok(source, "<");
-
-  // store the from
-  char from[80] = {0}; // TODO better way of determining size;
-  tok = strtok(NULL, ">");
-  strcat(from, "MAIL FROM: <");
-  strcat(from, tok);
-  strcat(from, ">");
-  emailArray[1] = from;
-  //printf("The length of from is: %d\n", (int)strlen(from));
-  //if(debug) {printf("this is the debug for the from: %s\n----\n", emailArray[1]);}
-  // store the to
-  char to[80] = {0}; // TODO better way of determining size
-  strcat(to, "RCPT TO: <");
-  strcat(to, tok);
-  strcat(to, ">\n");
-  emailArray[2] = to;
-  if(debug) {printf("this is the debug for the to: %s\n----\n", emailArray[2]);}
-
-  // store the subject
-  char subject[BUFSIZE] = {0}; // TODO better way of determining size
-  tok = strtok(NULL, "\n");
-  tok = strtok(NULL, "\n");
-  strcat(subject, tok);
-  strcat(subject, "\n\n");
-  tok = strtok(NULL, "\n");
-  strcat(subject, tok);
-  strcat(subject, "\n.\n");
-  //strcpy(emailArray[2], tok);
-  if(debug) {printf("this is the debug for the subject: %s\n----\n", subject);}
-
-  // // store the body
-  // char body[2000]; // TODO better way of determining size
+  // char **emailArray = (char**) malloc(sizeof(char*) * 7);
+  // char * tok = strtok(source, "<");
+  // char *from1 = malloc(sizeof(char) * 80);
+  // // store the from
+  // char from[80] = {0}; // TODO better way of determining size;
+  // tok = strtok(NULL, ">");
+  // snprintf(from1, 80, "MAIL FROM: <%s>", tok);
+  // // strcat(from, "MAIL FROM: <");
+  // // strcat(from, tok);
+  // // strcat(from, ">");
+  // strcpy(emailArray[1], from1);
+  // printf("The length of from is: %d\n", (int)strlen(from));
+  // if(debug) {printf("this is the debug for the from: %s\n----\n", emailArray[1]);}
+  // // store the to
   // tok = strtok(NULL, "\n");
-  // strcpy(body, tok);
-  // //strcpy(emailArray[3], tok);
-  if(debug) {printf("this is the debug for the body: %s\n----\n", tok);}
+  // printf("%s", tok);
+  // char to[80] = {0}; // TODO better way of determining size
+  // strcat(to, "RCPT TO: <");
+  // strcat(to, tok);
+  // strcat(to, ">\n");
+  // emailArray[2] = to;
+  // if(debug) {printf("this is the debug for the to: %s\n----\n", emailArray[2]);}
 
-  emailArray[0] = "HELO server\n";
-  emailArray[1] = "MAIL FROM: <zlabas2@uic.edu>\n";
-  //printf("THis is emailArray[1]: %s and this is from: %s", emailArray[1], from);
-  //printf("The length of emailArray[1] is: %d\n", (int)strlen(emailArray[1]));
-  emailArray[2] = "RCPT TO: <zlabas2@uic.edu>\n";
-  emailArray[3] = "DATA\n";
-  emailArray[4] = "FROM: zack <zlabas2@uic.edu>\n";
-  emailArray[5] = "Subject: Tests for CS450 HW1!\n\nGo Bears\n.\n";
-  emailArray[6] = "QUIT\n";
+  // // store the subject
+  // char subject[BUFSIZE] = {0}; // TODO better way of determining size
+  // tok = strtok(NULL, "\n");
+  // tok = strtok(NULL, "\n");
+  // strcat(subject, tok);
+  // strcat(subject, "\n\n");
+  // tok = strtok(NULL, "\n");
+  // strcat(subject, tok);
+  // strcat(subject, "\n.\n");
+  // //strcpy(emailArray[2], tok);
+  // if(debug) {printf("this is the debug for the subject: %s\n----\n", subject);}
+  //
+  // // // store the body
+  // // char body[2000]; // TODO better way of determining size
+  // // tok = strtok(NULL, "\n");
+  // // strcpy(body, tok);
+  // // //strcpy(emailArray[3], tok);
+  // if(debug) {printf("this is the debug for the body: %s\n----\n", tok);}
+  //
+  // emailArray[0] = "HELO server\n";
+  // //emailArray[1] = "MAIL FROM: <zlabas2@uic.edu>\n";
+  // printf("THis is emailArray[1]: %s and this is from: %s", emailArray[1], from);
+  // printf("The length of emailArray[1] is: %d\n", (int)strlen(emailArray[1]));
+  // emailArray[2] = "RCPT TO: <zlabas2@uic.edu>\n";
+  // emailArray[3] = "DATA\n";
+  // emailArray[4] = "FROM: zack <zlabas2@uic.edu>\n";
+  // emailArray[5] = "Subject: Tests for CS450 HW1!\n\nGo Bears\n.\n";
+  // emailArray[6] = "QUIT\n";
 
-  return emailArray;
+  return NULL;
 }
 
 int main(int argc, char *argv[]) {
 
-  if(debug) {
-    printf("Arguments besides executable %d\n", argc - 1);
-    int i = 1;
-    for (; i < argc; ++i)
-        printf("%s\n", argv[i]);
-    printf("----\n");
-  }
+  if(debug) {printf(" Number of arguments besides executable %d\n", argc - 1);}
 
-  // load the email into a char array
-  char **emailArray = {0};
-  char * source = openFileAndLoad(argv);
-  // parsing the stored email
-  emailArray = parseTheEmail(source);
-  // get the IP
-  char *iP = getTheiP();
-  // set the socket
-  int socketFd = setSocketFd();
-  // connect to server
-  connectToServer(socketFd, iP);
-  // sending the email
-  int i = 0;
-  for(i = 0; i < 7; i++) {
-    sendReceiveAndPrint(socketFd, emailArray[i]);
-    if(i == 0) // weird issue that requries two reads to work
-      readAndPrintFD(socketFd);
-    if(i ==3 ) // weird issue that requires two sends to work
-      i++;
-  }
+  int i = 1;
+  for(; i < argc; i++) {
+    if(debug) {printf("Now parsing file %s\n", argv[i]);}
 
-  // free memory
-  free(emailArray);
-  free(source);
+    // load the email into a char array
+    char **emailArray = {0};
+    char * source = openFileAndLoad(argv[i]);
+    // parsing the stored email
+    //emailArray = parseTheEmail(source);
+
+    char * helloServer = "HELO SERVER\n";
+    char * data = "DATA\n";
+    char * end = "QUIT\n";
+
+    char from[BUFSIZE];
+    char * tok = strtok(source, "<");
+    tok = strtok(NULL, ">");
+    snprintf(from, BUFSIZE, "MAIL FROM: <%s>\n", tok);
+    printf("This is the from: %s\n", from);
+
+    char to[BUFSIZE];
+    tok = strtok(NULL, "<");
+    tok = strtok(NULL, ">");
+    snprintf(to, BUFSIZE, "RCPT TO: <%s>\n", tok);
+    printf("This is the to: %s\n", to);
+
+    // store the subject
+    char subject[BUFSIZE] = {0}; // TODO better way of determining size
+    tok = strtok(NULL, "\n");
+    while(tok != NULL) {
+      strcat(subject, tok);
+      strcat(subject, "\n");
+      tok = strtok(NULL, "\n");
+    }
+    printf("This is the strcat: %s\n", subject);
+    strcat(subject, ".\n");
+    printf("This is the strcat: %s\n", subject);
+
+    if(debug) {printf("this is the debug for the subject: %s\n----\n", subject);}
+
+    if(debug) {printf("this is the debug for the body: %s\n----\n", tok);}
+
+    // emailArray[0] = "HELO server\n";
+    // //emailArray[1] = "MAIL FROM: <zlabas2@uic.edu>\n";
+    // printf("THis is emailArray[1]: %s and this is from: %s", emailArray[1], from);
+    // printf("The length of emailArray[1] is: %d\n", (int)strlen(emailArray[1]));
+    // emailArray[2] = "RCPT TO: <zlabas2@uic.edu>\n";
+    // emailArray[3] = "DATA\n";
+    // emailArray[4] = "FROM: zack <zlabas2@uic.edu>\n";
+    // emailArray[5] = "Subject: Tests for CS450 HW1!\n\nGo Bears\n.\n";
+    // emailArray[6] = "QUIT\n";
+
+
+    // get the IP
+    char *iP = getTheiP();
+    // set the socket
+    int socketFd = setSocketFd();
+    // connect to server
+    connectToServer(socketFd, iP);
+
+    char received[BUFSIZE];
+    read(socketFd, received, 1024);
+    printf("%s", received);
+
+    // sending the email
+    printf("%s", helloServer);
+    send(socketFd, helloServer, strlen(helloServer), 0);
+    read(socketFd, received, strlen(received));
+    printf("%s", received);
+
+    // sendAndRead(socketFd, helloServer);
+    // sendAndRead(socketFd, from);
+    // sendAndRead(socketFd, to);
+    // sendAndRead(socketFd, data);
+    // sendAndRead(socketFd, subject);
+    // sendAndRead(socketFd, end);
+    printf("%s", from);
+    send(socketFd, from, strlen(from), 0);
+    read(socketFd, received, strlen(received));
+    printf("%s", received);
+
+    printf("%s", to);
+    send(socketFd, to, strlen(to), 0);
+    read(socketFd, received, strlen(received));
+    printf("%s", received);
+
+    printf("%s", data);
+    send(socketFd, data, strlen(data), 0);
+    read(socketFd, received, strlen(received));
+    printf("%s", received);
+
+    printf("%s", subject);
+    send(socketFd, subject, strlen(subject), 0);
+    read(socketFd, received, strlen(received));
+    printf("%s", received);
+
+    printf("%s", end);
+    send(socketFd, end, strlen(end), 0);
+    read(socketFd, received, strlen(received));
+    printf("%s", received);
+
+
+    // free memory
+    free(source);
+  }
   return 0;
 }
