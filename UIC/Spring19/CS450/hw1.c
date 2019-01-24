@@ -17,6 +17,15 @@
 #define BUFSIZE 1024
 
 int debug = 0;
+char * tokenizer(char * toParse) {
+  char * fromCopy[BUFSIZE] = {0};
+  strcpy(fromCopy, toParse);
+  char * tok = strtok(fromCopy, "@");
+  tok = strtok(NULL, ">");
+  if(debug){printf("This is the parsed from: %s", tok);}
+  return tok;
+
+}
 
 void sendAndRead(int fileDescriptor, char * lineToSend) {
   char received[BUFSIZE] = {0};
@@ -66,8 +75,11 @@ int connectToServer(int socketFd, char *iP) {
   return socketFd;
 }
 
-char * getTheiP() {
-  FILE * mailhost = popen("host -t MX cs.uic.edu", "r");
+char * getTheiP(char * domain) {
+  char hostString[1024] = {0};
+  strcat(hostString, "host -t MX ");
+  strcat(hostString, domain);
+  FILE * mailhost = popen(hostString, "r");
   char popenText[80];
   char mailClientSpaced[50];
   char mailClient[50];
@@ -75,10 +87,14 @@ char * getTheiP() {
   if(mailhost != NULL) {
     fgets(popenText, 80, mailhost);
     if(debug) {printf("The result of the popen: %s", popenText);}
-    tok = strtok(popenText, "0123456789");
-    tok = strtok(NULL, "\n");
+    tok = strtok(popenText, "0123456789"); // find the first number
+    tok = strtok(NULL, " ");               // advance to the space
+    if(strcmp("uic.edu", domain) == 0 || strcmp("gmail.com", domain) == 0) {
+      tok = strtok(NULL, "\n");              // this final tok will capture addr
+    }
+    if(debug) {printf("This is the host -t tok: %s\n", tok);}
     strcpy(mailClientSpaced, tok);
-    strncpy(mailClient, &mailClientSpaced[1], 49);
+    strncpy(mailClient, &mailClientSpaced[0], 49);
     if(debug) {printf("The result of the mailClient: %s\n", mailClient);}
   }
   pclose(mailhost);
@@ -101,8 +117,19 @@ char * getTheiP() {
     fgets(popenText, 80, mailIP);
     if(debug) {printf("The result of the popen: %s", popenText);}
     tok = strtok(popenText, "0123456789");
-    tok = strtok(NULL, "\n");
+    if(strcmp("uic.edu", domain) == 0) {
+      tok = strtok(NULL, "0123456789");
+      tok = strtok(NULL, "\n");
+    }
+    if(strcmp("yahoo.com", domain) == 0) { // real jenk
+      tok = strtok(NULL, "0123456789");
+      tok = strtok(NULL, " ");
+      tok = strtok(NULL, " ");
+      tok = strtok(NULL, " ");
+    }
+    if(debug){printf("THis is the tok: %s", tok);}
     strcpy(IPSpaced, tok);
+    if(debug){printf("THis is the IPSpaced: %s", IPSpaced);}
     strcat(IpNeededAdd,"1");
     strcat(IpNeededAdd,IPSpaced);
     strncpy(iP,&IpNeededAdd[0],strlen(IpNeededAdd));
@@ -227,7 +254,6 @@ int main(int argc, char *argv[]) {
     if(debug) {printf("Now parsing file %s\n", argv[i]);}
 
     // load the email into a char array
-    char **emailArray = {0};
     char * source = openFileAndLoad(argv[i]);
     // parsing the stored email
     //emailArray = parseTheEmail(source);
@@ -240,13 +266,13 @@ int main(int argc, char *argv[]) {
     char * tok = strtok(source, "<");
     tok = strtok(NULL, ">");
     snprintf(from, BUFSIZE, "MAIL FROM: <%s>\n", tok);
-    printf("This is the from: %s\n", from);
+    if(debug) {printf("This is the from: %s\n", from);}
 
     char to[BUFSIZE];
     tok = strtok(NULL, "<");
     tok = strtok(NULL, ">");
     snprintf(to, BUFSIZE, "RCPT TO: <%s>\n", tok);
-    printf("This is the to: %s\n", to);
+    if(debug) {printf("This is the to: %s\n", to);}
 
     // store the subject
     char subject[BUFSIZE] = {0}; // TODO better way of determining size
@@ -256,9 +282,8 @@ int main(int argc, char *argv[]) {
       strcat(subject, "\n");
       tok = strtok(NULL, "\n");
     }
-    printf("This is the strcat: %s\n", subject);
+
     strcat(subject, ".\n");
-    printf("This is the strcat: %s\n", subject);
 
     if(debug) {printf("this is the debug for the subject: %s\n----\n", subject);}
 
@@ -276,7 +301,10 @@ int main(int argc, char *argv[]) {
 
 
     // get the IP
-    char *iP = getTheiP();
+
+    char * domain = tokenizer(from);
+    if(debug){printf("\nThis is the domain: %s\n", domain);}
+    char *iP = getTheiP(domain);
     // set the socket
     int socketFd = setSocketFd();
     // connect to server
