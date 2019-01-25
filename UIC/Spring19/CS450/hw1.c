@@ -16,7 +16,7 @@
 #define PORT 25
 #define BUFSIZE 1024
 
-int debug = 1;
+int debug = 0;
 
 int checkForValidEmail(char * address) {
   char * valid = strchr(address, '@');
@@ -70,7 +70,7 @@ int setSocketFd() {
 int connectToServer(int socketFd, char * iP) {
   struct sockaddr_in servadd;
   memset(&servadd, '0', sizeof(servadd));
-  printf("This is connectToServer ip: %s\n\n", iP);
+  if(debug) {printf("This is connectToServer ip: %s\n\n", iP);}
   if((servadd.sin_addr.s_addr = inet_addr(iP)) < 0) {
     perror("Error with inet_addr");
     return -1;
