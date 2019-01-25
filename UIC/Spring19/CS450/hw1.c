@@ -16,15 +16,25 @@
 #define PORT 25
 #define BUFSIZE 1024
 
-int debug = 0;
+int debug = 1;
+
+int checkForValidEmail(char * address) {
+  char * valid = strchr(address, '@');
+  if(valid == NULL) {
+    return 0;
+  }
+  return 1;
+}
 char * tokenizer(char * toParse) {
   char * fromCopy[BUFSIZE] = {0};
   strcpy(fromCopy, toParse);
   char * tok = strtok(fromCopy, "@");
-  tok = strtok(NULL, ">");
-  if(debug){printf("This is the parsed from: %s", tok);}
-  return tok;
-
+  if(tok != NULL) {
+    tok = strtok(NULL, ">");
+    if(debug){printf("This is the parsed from: %s\n", tok);}
+    return tok;
+  }
+  return NULL;
 }
 
 void sendAndRead(int fileDescriptor, char * lineToSend) {
@@ -57,10 +67,11 @@ int setSocketFd() {
   return socketFd;
 }
 
-int connectToServer(int socketFd, char *iP) {
+int connectToServer(int socketFd, char * iP) {
   struct sockaddr_in servadd;
   memset(&servadd, '0', sizeof(servadd));
-  if((servadd.sin_addr.s_addr = inet_addr("131.193.32.56")) < 0) {
+  printf("This is connectToServer ip: %s\n\n", iP);
+  if((servadd.sin_addr.s_addr = inet_addr(iP)) < 0) {
     perror("Error with inet_addr");
     return -1;
   }
@@ -86,7 +97,7 @@ char * getTheiP(char * domain) {
   char * tok = {0};
   if(mailhost != NULL) {
     fgets(popenText, 80, mailhost);
-    if(debug) {printf("The result of the popen: %s", popenText);}
+    if(debug) {printf("The result of the popen: %s\n", popenText);}
     tok = strtok(popenText, "0123456789"); // find the first number
     tok = strtok(NULL, " ");               // advance to the space
     if(strcmp("uic.edu", domain) == 0 || strcmp("gmail.com", domain) == 0) {
@@ -106,7 +117,7 @@ char * getTheiP(char * domain) {
 
   FILE *mailIP = popen(hostMailClinetCommand, "r");
   char IPSpaced[30] = {0};
-  char iP[30] = {0};
+  char iPv4[30] = {0};
   char IpNeededAdd[30] = {0};
 
   // this part was having problems when setting up the IP storing
@@ -115,29 +126,32 @@ char * getTheiP(char * domain) {
   // with the intermiate IPNeededAdd
   if(mailIP != NULL) {
     fgets(popenText, 80, mailIP);
-    if(debug) {printf("The result of the popen: %s", popenText);}
+    if(debug) {printf("The result of the popen: %s\n", popenText);}
     tok = strtok(popenText, "0123456789");
     if(strcmp("uic.edu", domain) == 0) {
       tok = strtok(NULL, "0123456789");
       tok = strtok(NULL, "\n");
     }
-    if(strcmp("yahoo.com", domain) == 0) { // real jenk
+    else if(strcmp("yahoo.com", domain) == 0) { // real jenk
       tok = strtok(NULL, "0123456789");
       tok = strtok(NULL, " ");
       tok = strtok(NULL, " ");
       tok = strtok(NULL, " ");
     }
-    if(debug){printf("THis is the tok: %s", tok);}
+    else {
+      tok = strtok(NULL, " ");
+    }
+    if(debug){printf("This is the tok: %s\n", tok);}
     strcpy(IPSpaced, tok);
-    if(debug){printf("THis is the IPSpaced: %s", IPSpaced);}
+    if(debug){printf("THis is the IPSpaced: %s\n", IPSpaced);}
     strcat(IpNeededAdd,"1");
     strcat(IpNeededAdd,IPSpaced);
-    strncpy(iP,&IpNeededAdd[0],strlen(IpNeededAdd));
-    if(debug) {printf("The result of the IP: %s\n", iP);}
+    strncpy(iPv4,&IpNeededAdd[0],strlen(IpNeededAdd));
+    if(debug) {printf("The result of the IP: %s\n", iPv4);}
   }
   pclose(mailIP);
 
-  return iP;
+  return iPv4;
 }
 
 char * openFileAndLoad(char *argv) {
@@ -189,62 +203,6 @@ char * openFileAndLoad(char *argv) {
   return source;
 }
 
-char ** parseTheEmail(char *source) {
-  // char **emailArray = (char**) malloc(sizeof(char*) * 7);
-  // char * tok = strtok(source, "<");
-  // char *from1 = malloc(sizeof(char) * 80);
-  // // store the from
-  // char from[80] = {0}; // TODO better way of determining size;
-  // tok = strtok(NULL, ">");
-  // snprintf(from1, 80, "MAIL FROM: <%s>", tok);
-  // // strcat(from, "MAIL FROM: <");
-  // // strcat(from, tok);
-  // // strcat(from, ">");
-  // strcpy(emailArray[1], from1);
-  // printf("The length of from is: %d\n", (int)strlen(from));
-  // if(debug) {printf("this is the debug for the from: %s\n----\n", emailArray[1]);}
-  // // store the to
-  // tok = strtok(NULL, "\n");
-  // printf("%s", tok);
-  // char to[80] = {0}; // TODO better way of determining size
-  // strcat(to, "RCPT TO: <");
-  // strcat(to, tok);
-  // strcat(to, ">\n");
-  // emailArray[2] = to;
-  // if(debug) {printf("this is the debug for the to: %s\n----\n", emailArray[2]);}
-
-  // // store the subject
-  // char subject[BUFSIZE] = {0}; // TODO better way of determining size
-  // tok = strtok(NULL, "\n");
-  // tok = strtok(NULL, "\n");
-  // strcat(subject, tok);
-  // strcat(subject, "\n\n");
-  // tok = strtok(NULL, "\n");
-  // strcat(subject, tok);
-  // strcat(subject, "\n.\n");
-  // //strcpy(emailArray[2], tok);
-  // if(debug) {printf("this is the debug for the subject: %s\n----\n", subject);}
-  //
-  // // // store the body
-  // // char body[2000]; // TODO better way of determining size
-  // // tok = strtok(NULL, "\n");
-  // // strcpy(body, tok);
-  // // //strcpy(emailArray[3], tok);
-  // if(debug) {printf("this is the debug for the body: %s\n----\n", tok);}
-  //
-  // emailArray[0] = "HELO server\n";
-  // //emailArray[1] = "MAIL FROM: <zlabas2@uic.edu>\n";
-  // printf("THis is emailArray[1]: %s and this is from: %s", emailArray[1], from);
-  // printf("The length of emailArray[1] is: %d\n", (int)strlen(emailArray[1]));
-  // emailArray[2] = "RCPT TO: <zlabas2@uic.edu>\n";
-  // emailArray[3] = "DATA\n";
-  // emailArray[4] = "FROM: zack <zlabas2@uic.edu>\n";
-  // emailArray[5] = "Subject: Tests for CS450 HW1!\n\nGo Bears\n.\n";
-  // emailArray[6] = "QUIT\n";
-
-  return NULL;
-}
-
 int main(int argc, char *argv[]) {
 
   if(debug) {printf(" Number of arguments besides executable %d\n", argc - 1);}
@@ -258,53 +216,55 @@ int main(int argc, char *argv[]) {
     // parsing the stored email
     //emailArray = parseTheEmail(source);
 
-    char * helloServer = "HELO SERVER\n";
-    char * data = "DATA\n";
-    char * end = "QUIT\n";
+    char * helloServer = "HELO SERVER\r\n";
+    char * data = "DATA\r\n";
+    char * end = "QUIT\r\n";
 
     char from[BUFSIZE];
     char * tok = strtok(source, "<");
     tok = strtok(NULL, ">");
-    snprintf(from, BUFSIZE, "MAIL FROM: <%s>\n", tok);
+    snprintf(from, BUFSIZE, "MAIL FROM: <%s>\r\n", tok);
     if(debug) {printf("This is the from: %s\n", from);}
+
+    // check email is valid format
+    char * validAddress[BUFSIZE] = {0};
+    strcpy(validAddress, from);
+    int badAddress = checkForValidEmail(validAddress);
+    if(!badAddress) {
+      printf("The sending address is not valid!\n");
+      continue;
+    }
 
     char to[BUFSIZE];
     tok = strtok(NULL, "<");
     tok = strtok(NULL, ">");
-    snprintf(to, BUFSIZE, "RCPT TO: <%s>\n", tok);
+    snprintf(to, BUFSIZE, "RCPT TO: <%s>\r\n", tok);
     if(debug) {printf("This is the to: %s\n", to);}
 
     // store the subject
     char subject[BUFSIZE] = {0}; // TODO better way of determining size
-    tok = strtok(NULL, "\n");
+    tok = strtok(NULL, "\r\n");
     while(tok != NULL) {
       strcat(subject, tok);
-      strcat(subject, "\n");
-      tok = strtok(NULL, "\n");
+      strcat(subject, "\r\n");
+      tok = strtok(NULL, "\r\n");
     }
 
-    strcat(subject, ".\n");
+    strcat(subject, ".\r\n");
 
     if(debug) {printf("this is the debug for the subject: %s\n----\n", subject);}
-
-    if(debug) {printf("this is the debug for the body: %s\n----\n", tok);}
-
-    // emailArray[0] = "HELO server\n";
-    // //emailArray[1] = "MAIL FROM: <zlabas2@uic.edu>\n";
-    // printf("THis is emailArray[1]: %s and this is from: %s", emailArray[1], from);
-    // printf("The length of emailArray[1] is: %d\n", (int)strlen(emailArray[1]));
-    // emailArray[2] = "RCPT TO: <zlabas2@uic.edu>\n";
-    // emailArray[3] = "DATA\n";
-    // emailArray[4] = "FROM: zack <zlabas2@uic.edu>\n";
-    // emailArray[5] = "Subject: Tests for CS450 HW1!\n\nGo Bears\n.\n";
-    // emailArray[6] = "QUIT\n";
-
 
     // get the IP
 
     char * domain = tokenizer(from);
+    if(domain == NULL) {
+      printf("The domain is NULL - going to next file!\n");
+      continue;
+    }
     if(debug){printf("\nThis is the domain: %s\n", domain);}
-    char *iP = getTheiP(domain);
+    char iP[BUFSIZE] = {0};
+    strcpy(iP, getTheiP(domain));
+    if(debug){printf("This is the return to main value for iP: %s\n", iP);}
     // set the socket
     int socketFd = setSocketFd();
     // connect to server
@@ -312,44 +272,42 @@ int main(int argc, char *argv[]) {
 
     char received[BUFSIZE];
     read(socketFd, received, 1024);
-    printf("%s", received);
+    printf("Initial read from server: %s\n", received);
 
     // sending the email
     printf("%s", helloServer);
     send(socketFd, helloServer, strlen(helloServer), 0);
     read(socketFd, received, strlen(received));
-    printf("%s", received);
+    printf("%s\n", received);
 
-    // sendAndRead(socketFd, helloServer);
-    // sendAndRead(socketFd, from);
-    // sendAndRead(socketFd, to);
-    // sendAndRead(socketFd, data);
-    // sendAndRead(socketFd, subject);
-    // sendAndRead(socketFd, end);
-    printf("%s", from);
+    printf("\n%s", from);
     send(socketFd, from, strlen(from), 0);
     read(socketFd, received, strlen(received));
-    printf("%s", received);
+    printf("%s\n", received);
 
-    printf("%s", to);
+    printf("\n%s", to);
     send(socketFd, to, strlen(to), 0);
     read(socketFd, received, strlen(received));
-    printf("%s", received);
+    printf("%s\n", received);
 
-    printf("%s", data);
+    printf("\n%s", data);
     send(socketFd, data, strlen(data), 0);
     read(socketFd, received, strlen(received));
-    printf("%s", received);
+    printf("%s\n", received);
+    if(strstr(received, "550") != NULL) {
+      printf("No such user, skipping to next file!\n");
+      continue;
+    }
 
-    printf("%s", subject);
+    printf("\n%s", subject);
     send(socketFd, subject, strlen(subject), 0);
     read(socketFd, received, strlen(received));
-    printf("%s", received);
+    printf("%s\n", received);
 
-    printf("%s", end);
+    printf("\n%s", end);
     send(socketFd, end, strlen(end), 0);
     read(socketFd, received, strlen(received));
-    printf("%s", received);
+    printf("%s\n", received);
 
 
     // free memory
